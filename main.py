@@ -1,35 +1,3 @@
-"""
-Here's the strategy:
- - Get list of accounts from scraping Trackalytics.
- 	- Scrape around 10-20 pages - try to get something like 250-500 accounts
- 	- This should take around 2s per page or 40s total
- - Use instaloader to get follower data for each account as well as all the other info
- - Use a system to download the profile pictures to the computer
- 	- Use some piece of software to get some sort of color palette from each photo
- - This cronjob is run on the Flask server, or it can be done on request from some sort of route
- - Use cronjobs on a local machine such as a Raspberry Pi to periodically request
-   this route and subsequently get the new data
- - Store all the data in a JSON file. Why? Because. Why not. Lmao.
-
-this is all so fucking easy lmao
-
-Models:
- - Account:
- 	- id (random UUID)
- 	- full_name
- 	- followers_count
- 	- bio_text
- 	- profile_picture_url
- 	- profile_picture_colors (array of strings)
-
-Routes:
-	Public:
-		- Get random account (GET) --> /game/account
-		- Get random account excluding list of IDs (GET) --> /game/account/exclude/id_a,id_b,id_etc
-	Private:
-		- Refresh database (GET with Authorization Header) --> /database/refresh
-"""
-
 import instaloader, math, schedule, requests, smtplib, ssl
 from bs4 import BeautifulSoup
 from unidecode import unidecode
