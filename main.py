@@ -1,16 +1,20 @@
-import instaloader, math, schedule, requests, smtplib, ssl
+import instaloader, math, schedule, requests, smtplib, ssl, json
 from bs4 import BeautifulSoup
 from unidecode import unidecode
 from time import sleep
 
-amount_of_accounts = 450
-email_to = ["gabriel@gabrielromualdo.com"]
-email_from = "bot@gabrielromualdo.com"
-check_every = 240 # in minutes
+config_dict = json.loads(open('config.json').read())
+amount_of_accounts = config_dict['amountOfAccounts'] # try to make this number a multiple of 75 because Instaloader seems to rate-limit in periods of 75 requests
+amount_of_posts_per_account = config_dict['amountOfPostsPerAccount']
+email_to = config_dict['emailToAddress'] # "gabriel@gabrielromualdo.com"
+email_from = config_dict['emailBotAddress'] # "bot@gabrielromualdo.com"
+check_every = config_dict['cronjobPeriodMinutes'] # 240 in minutes
 
-email_password = open('email_pwd.txt').read().strip()
-backend_auth_token = open('backend_auth_token.txt').read().strip()
-backend_baseurl = 'http://localhost:6001'
+instagram_username = config_dict['igUsername']
+instagram_password = config_dict['igPassword']
+email_password = config_dict['emailBotPassword']
+backend_auth_token = config_dict['backendAuthToken']
+backend_baseurl = config_dict['backendBaseURL']
 
 def send_email(subject, contents):
 	subject = unidecode(str(subject).strip())
@@ -34,14 +38,13 @@ def send_email(subject, contents):
 	server.ehlo() # Can be omitted
 	server.login(email, password)
 
-	for email_address in email_to:
-		server.sendmail(email, email_address, "Subject: " + subject + "\n\n" + contents)
+	server.sendmail(email, email_to, "Subject: " + subject + "\n\n" + contents)
 	
 	# exit server
 	server.quit()
 
 	print("\n===\n")
-	print("Successfully sent email to {}".format(",".join(email_to)))
+	print("Successfully sent email to {}".format(email_to))
 	print("\nSubject: {}".format(subject))
 	print("Contents:\n{}".format(contents))
 
@@ -78,28 +81,32 @@ def cronjob():
 		print("Finished Scraping List Page {}".format(i))
 
 	# instaloader is used to get data from Instagram
-	L = instaloader.Instaloader()
+	instaloader_client = instaloader.Instaloader()
+	instaloader_client.login(instagram_username, instagram_password)
 	for i, username in enumerate(usernames):
 		try:
 			# create new account object and populate
-			profile = instaloader.Profile.from_username(L.context, username)
+			profile = instaloader.Profile.from_username(instaloader_client.context, username)
 			account = {
 				"followers": profile.followers,
 				"name": profile.full_name,
 				"username": username,
 				"bio": profile.biography,
 				"pictureURL": profile.profile_pic_url,
-				"id": len(accounts) + 1 # yes, this means that IDs will basically be in order
+				"id": len(accounts) + 1, # yes, this means that IDs will be in order
+				"postImageURLs": []
 			}
+
 			for post in profile.get_posts(): # loop through posts and note the first post's shortcode
-				account["firstPostShortcode"] = post.shortcode
-				break
+				account["postImageURLs"].append(post.url)
+				if len(account["postImageURLs"]) == amount_of_posts_per_account:
+					break
 			
 			# error checking
 			assert(account["followers"] > 0)
 			assert(len(account["name"]) > 0)
 			assert(len(account["pictureURL"]) > 0)
-			assert(len(account["firstPostShortcode"]) > 0)
+			assert(len(account["postImageURLs"]) == amount_of_posts_per_account)
 
 			# add to final array
 			accounts.append(account)

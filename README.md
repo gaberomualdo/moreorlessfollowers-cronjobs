@@ -5,5 +5,19 @@ Cronjobs for More Or Less Followers. Run on a local machine as a continuous proc
 ### File structure:
 
 - `main.py` --> main file
-- `backend_auth_token.txt` --> auth token used when importing data to the backend
-- `email_pwd.txt` --> password for the bot email
+- `config.json` --> configuration file, for example:
+
+```json
+{
+  "amountOfAccounts": 75,
+  "amountOfPostsPerAccount": 16,
+  "emailToAddress": "myemailaccount@example.com",
+  "emailBotAddress": "bot@example.com",
+  "cronjobPeriodMinutes": 240,
+  "igUsername": "myigaccount123",
+  "igPassword": "qwe456",
+  "emailBotPassword": "xyz987",
+  "backendAuthToken": "abc123",
+  "backendBaseURL": "http://mywebserver.com/api"
+}
+```
