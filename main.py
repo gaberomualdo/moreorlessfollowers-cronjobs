@@ -35,10 +35,10 @@ from bs4 import BeautifulSoup
 from unidecode import unidecode
 from time import sleep
 
-amount_of_accounts = 25
+amount_of_accounts = 450
 email_to = ["gabriel@gabrielromualdo.com"]
 email_from = "bot@gabrielromualdo.com"
-check_every = 20 # in minutes
+check_every = 240 # in minutes
 
 email_password = open('email_pwd.txt').read().strip()
 backend_auth_token = open('backend_auth_token.txt').read().strip()
