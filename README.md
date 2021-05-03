@@ -10,6 +10,7 @@ Cronjobs for More Or Less Followers. Run on a local machine as a continuous proc
 ```json
 {
   "amountOfAccounts": 450,
+  "minimumAmountOfAccounts": 75,
   "amountOfPostsPerAccount": 16,
   "emailToAddress": "myemailaccount@example.com",
   "emailBotAddress": "bot@example.com",

@@ -2,13 +2,15 @@ import instaloader, math, schedule, requests, smtplib, ssl, json
 from bs4 import BeautifulSoup
 from unidecode import unidecode
 from time import sleep
+from urllib.parse import quote
 
 config_dict = json.loads(open('config.json').read())
+minimum_amount_of_accounts = config_dict['minimumAmountOfAccounts']
 amount_of_accounts = config_dict['amountOfAccounts'] # try to make this number a multiple of 75 because Instaloader seems to rate-limit in periods of 75 requests
 amount_of_posts_per_account = config_dict['amountOfPostsPerAccount']
-email_to = config_dict['emailToAddress'] # "gabriel@gabrielromualdo.com"
-email_from = config_dict['emailBotAddress'] # "bot@gabrielromualdo.com"
-check_every = config_dict['cronjobPeriodMinutes'] # 240 in minutes
+email_to = config_dict['emailToAddress']
+email_from = config_dict['emailBotAddress']
+check_every = config_dict['cronjobPeriodMinutes']
 
 instagram_username = config_dict['igUsername']
 instagram_password = config_dict['igPassword']
@@ -51,6 +53,7 @@ def send_email(subject, contents):
 def cronjob():
 	accounts = []
 	usernames = []
+	cached_images = []
 
 	# loop through pages of Tackalytics site which lists the most followed profiles
 	# pages start at 1 and each page at the moment (2021-04-30) has 25 profiles
@@ -73,15 +76,19 @@ def cronjob():
 			except Exception as e:
 				print("Error: {}".format(e))
 				send_email("MOLF: An Error Occurred", "An error occurred with the message: {}".format(e))
-				break
+				return
 		else:
 			send_email("MOLF: An Error Occurred Requesting Site (HTTP {})".format(req.status_code), "And that's all you need to know.")
 			print("Error {}".format(req.status_code))
-			break
+			return
 		print("Finished Scraping List Page {}".format(i))
 
+	if(len(usernames) != amount_of_accounts):
+		send_email("MOLF: An Error Occurred Getting Usernames List", "{} usernames were found and where {} were wanted.".format(len(usernames), amount_of_accounts))
+		return
+
 	# instaloader is used to get data from Instagram
-	instaloader_client = instaloader.Instaloader()
+	instaloader_client = instaloader.Instaloader(sleep=False, download_pictures=False, download_videos=False, download_video_thumbnails=False)
 	instaloader_client.login(instagram_username, instagram_password)
 	for i, username in enumerate(usernames):
 		try:
@@ -96,9 +103,23 @@ def cronjob():
 				"id": len(accounts) + 1, # yes, this means that IDs will be in order
 				"postImageURLs": []
 			}
+			cached_images.append(profile.profile_pic_url)
+			profile_pic_download = requests.get('{}/download-img.php?url={}'.format(backend_baseurl, quote(profile.profile_pic_url)), headers={"x-auth-token": backend_auth_token})
+			if(profile_pic_download.status_code == 200):
+				print("Successfully downloaded and cached @{}'s profile picture on server".format(username))
+			else:
+				send_email("MOLF: An Error Occurred Downloading a Profile Picture", "Could not get profile picture: {}.".format(profile.profile_pic_url))
+				return
 
 			for post in profile.get_posts(): # loop through posts and note the first post's shortcode
 				account["postImageURLs"].append(post.url)
+				cached_images.append(post.url)
+				post_download = requests.get('{}/download-img.php?url={}'.format(backend_baseurl, quote(post.url)), headers={"x-auth-token": backend_auth_token})
+				if(post_download.status_code == 200):
+					print("Successfully downloaded and cached @{}'s post #{} on server".format(username, len(account["postImageURLs"])))
+				else:
+					send_email("MOLF: An Error Occurred Downloading a Post", "Could not get @{}'s post: {}.".format(username, post.url))
+					return
 				if len(account["postImageURLs"]) == amount_of_posts_per_account:
 					break
 			
@@ -112,7 +133,13 @@ def cronjob():
 			accounts.append(account)
 			print("Finished {}/{}: {}".format(i + 1, len(usernames), username))
 		except Exception as e:
+			send_email("MOLF: A Warning Occurred Getting and Using Data From Instagram", "Error message was: {}. This is a warning and the program will continue.".format(e))
 			pass
+
+	# there can be errors, but I must assert the accounts amount minimum
+	if(len(accounts) < minimum_amount_of_accounts):
+		send_email("MOLF: The Amount Of Accounts Successfully Fetched Did Not Meet The Minimum", "{} accounts were fetched and {} are needed to meet the specified minimum.".format(len(accounts), minimum_amount_of_accounts))
+		return
 
 	# upload accounts data to server
 	req = requests.post('{}/import-data.php'.format(backend_baseurl), headers={"x-auth-token": backend_auth_token}, json=accounts)
@@ -120,6 +147,14 @@ def cronjob():
 		print("Successfully uploaded data to backend.")
 	else:
 		send_email("MOLF: An Error Occurred", "An error occurred uploading data to server (HTTP {})".format(req.status_code))
+	
+	another_req = requests.post('{}/remove-old-imgs.php'.format(backend_baseurl), headers={"x-auth-token": backend_auth_token}, json=cached_images)
+	if another_req.status_code == 200:
+		print("Successfully removed unused images from backend.")
+	else:
+		send_email("MOLF: An Error Occurred", "An error occurred removing unused images from server (HTTP {})".format(req.status_code))
+		return
+	send_email("MOLF: ACCOUNT UPLOAD SUCCESS ({})".format(len(accounts)), "{} accounts were fetched and successfully uploaded to the backend. Old images were removed from the backend as well. All is working!".format(len(accounts)))
 
 # create the cronjob
 schedule.every(check_every).minutes.do(cronjob)

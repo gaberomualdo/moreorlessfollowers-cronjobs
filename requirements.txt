@@ -1,0 +1,9 @@
+instaloader
+math
+schedule
+requests
+smtplib
+ssl
+json
+bs4
+unidecode
