@@ -19,36 +19,42 @@ backend_auth_token = config_dict['backendAuthToken']
 backend_baseurl = config_dict['backendBaseURL']
 
 def send_email(subject, contents):
-	subject = unidecode(str(subject).strip())
-	contents = unidecode(str(contents).strip())
+	try:
+		subject = unidecode(str(subject).strip())
+		contents = unidecode(str(contents).strip())
 
-	# Details
-	email = "bot@gabrielromualdo.com"
-	password = email_password
+		# Details
+		email = "bot@gabrielromualdo.com"
+		password = email_password
 
-	# SSL Details
-	port = 587
-	servername = "smtp.dreamhost.com"
+		# SSL Details
+		port = 587
+		servername = "smtp.dreamhost.com"
 
-	# Create a secure SSL context
-	context = ssl.create_default_context()
+		# Create a secure SSL context
+		context = ssl.create_default_context()
 
-	# Try to log in to server and send email
-	server = smtplib.SMTP(servername, port)
-	server.ehlo() # Can be omitted
-	server.starttls(context=context) # Secure the connection
-	server.ehlo() # Can be omitted
-	server.login(email, password)
+		# Try to log in to server and send email
+		server = smtplib.SMTP(servername, port)
+		server.ehlo() # Can be omitted
+		server.starttls(context=context) # Secure the connection
+		server.ehlo() # Can be omitted
+		server.login(email, password)
 
-	server.sendmail(email, email_to, "Subject: " + subject + "\n\n" + contents)
-	
-	# exit server
-	server.quit()
+		server.sendmail(email, email_to, "Subject: " + subject + "\n\n" + contents)
+		
+		# exit server
+		server.quit()
 
-	print("\n===\n")
-	print("Successfully sent email to {}".format(email_to))
-	print("\nSubject: {}".format(subject))
-	print("Contents:\n{}".format(contents))
+		print("\n===\n")
+		print("Successfully sent email to {}".format(email_to))
+		print("\nSubject: {}".format(subject))
+		print("Contents:\n{}".format(contents))
+	except Exception as e:
+		print("An error occurred sending email: " + e)
+		print("This was most likely a rate limit from the email server. Here was the email to be sent:")
+		print("Subject: {}".format(subject))
+		print("Contents:\n{}\n".format(contents))
 
 def cronjob():
 	accounts = []
