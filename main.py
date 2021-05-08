@@ -95,7 +95,7 @@ def cronjob():
 
 	# instaloader is used to get data from Instagram
 	instaloader_client = instaloader.Instaloader(sleep=False, download_pictures=False, download_videos=False, download_video_thumbnails=False)
-	instaloader_client.login(instagram_username, instagram_password)
+	# instaloader_client.login(instagram_username, instagram_password)
 	for i, username in enumerate(usernames):
 		try:
 			# create new account object and populate
@@ -167,6 +167,6 @@ schedule.every(check_every).minutes.do(cronjob)
 
 # run the cronjob
 cronjob()
-while True:
-	schedule.run_pending()
-	sleep(30) # check to run the cronjob every 30 seconds
+# while True:
+# 	schedule.run_pending()
+# 	sleep(30) # check to run the cronjob every 30 seconds
